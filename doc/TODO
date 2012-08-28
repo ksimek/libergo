@@ -1,0 +1,24 @@
+Implement linear algebra routines needed for mv gaussian (cholesky, inversion)
+
+mh_step:
+    * no_change feature is missing
+    * no temperature feature
+
+Add Concept enforcement:
+    1. BaseModel (copy_constructible)
+    2. VectorModel (operator[], size)
+    3. VectorAdapter (set, get, size)
+
+Code cleanliness:
+    80 columns max.
+    code reviews
+
+
+Coding standard:
+    parameter-lists line-breaks:
+        - open paren position (end of line or begin of next?)
+
+
+
+Creat deimesnion_mismatch exception
+magntidue_squared
