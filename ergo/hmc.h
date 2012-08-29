@@ -475,7 +475,6 @@ void hmc_step<Model, ACCEPT_STEP, REVERSIBLE>::operator()(
         grad_x_eps.begin(),
         multiplies<double>());
 
-
     // ===============================================================
     //  LEAP-FROG algorithm
     // --------------------------------------------------------------- 
@@ -574,6 +573,7 @@ void hmc_step<Model, ACCEPT_STEP, REVERSIBLE>::operator()(
                         p_star[d] *= -1;
                     }
                 } while(q_d_p < lower_bounds_[d] || q_d_p > upper_bounds_[d]);
+
                 mpb = q_d_p - q_d;
             }
 
