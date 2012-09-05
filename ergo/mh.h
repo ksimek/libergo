@@ -114,7 +114,7 @@ public:
      *          proposed model under the proposal distribution.  
      *          Applies to the previously-executed step only.
      */
-    double reverse_proposal_density() const { return fwd_proposal_prob_; }
+    double reverse_proposal_density() const { return rev_proposal_prob_; }
 
     /**
      * @brief   log probability density of the proposed model given the
