@@ -141,7 +141,8 @@ public:
     {
         if(!store_proposed_)
         {
-            return boost::none;
+            static boost::optional<Model> empty_model;
+            return empty_model;
         }
     
         return proposed_model_;
