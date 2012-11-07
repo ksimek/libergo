@@ -749,8 +749,11 @@ public:
     hmc_detail_recorder(OutputIterator it) : it_(it) 
     {}
 
-    template <class Model>
-    void operator()(const hmc_step<Model>& step, const Model&, double log_target)
+    template <class Model, bool AS, bool R>
+    void operator()(
+        const hmc_step<Model, AS, R>& step,
+        const Model&,
+        double log_target)
     {
         step_detail detail;
         detail.type = "hmc";
