@@ -22,3 +22,13 @@ Coding standard:
 
 Creat deimesnion_mismatch exception
 magntidue_squared
+
+---------
+Hmc_step
+
+is returning name and temperature by-reference really how we want them to be set?
+
+-----
+Recorders
+
+Looks like you started using boost static assert , but then commented it out.  is this worth persuing further?  Mgiht be a nice feature if it's do-able.  But I've never seen another library do it, so maybe there's a technological barrier to this.

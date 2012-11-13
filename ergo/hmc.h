@@ -59,7 +59,10 @@ public:
 
 public:
 
-    /** @brief  Document!!! */
+    /** @brief  Document!!! 
+     *
+     * @param alpha Amount of momentum to preserve between calls, in [0,1].  If set to > 0.0 an exception will be thrown if the model may changes dimension between calls. 
+     */
     template <class VectorAdapter, class Evaluate, class Gradient>
     hmc_step(
         const VectorAdapter& adapter,
@@ -96,7 +99,10 @@ public:
         size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
     }
 
-    /** @brief  Document!!! */
+    /** @brief  Document!!! 
+     *
+     * @param alpha Amount of momentum to preserve between calls, in [0,1].  If set to > 0.0 an exception will be thrown if the model may changes dimension between calls. 
+     */
     template <class Evaluate, class Gradient>
     hmc_step(
         const Evaluate& log_target, 
@@ -105,8 +111,8 @@ public:
         int num_dynamics_steps,
         double alpha = 0.0
     ) :  
-        get_(boost::bind<double>(vector_get, _1, _2)),
-        set_(boost::bind<void>(vector_set, _1, _2, _3)),
+        get_(boost::bind<double>(vector_get<Model>, _1, _2)),
+        set_(boost::bind<void>(vector_set<Model>, _1, _2, _3)),
         size_(boost::bind<size_t>(&Model::size, _1)),
         log_target_(log_target),
         gradient_(gradient),
@@ -121,11 +127,23 @@ public:
         lower_bounds_(),
         upper_bounds_(),
         uni_dist_(0, 1),
-        uni_rand_(rng<rng_t>(), uni_dist_),
+        uni_rand_(&rng<rng_t>(), uni_dist_),
         norm_dist_(0, 1),
-        norm_rand_(rng<rng_t>(), norm_dist_),
+        norm_rand_(&rng<rng_t>(), norm_dist_),
         store_proposed_(false)
     {}
+
+    /** @brief Reset step.  Momentum is discarded **/
+    void reset() { if(alpha_ != 0.0) p_.resize(0); }
+
+    /** @brief Reset step with new step sizes.  Momentum is discarded **/
+    void reset( const vec_t& step_sizes)
+    {
+        if(alpha_ != 0.0)
+            p_.resize(0);
+
+        step_sizes_ = step_sizes;
+    }
 
     /** 
      * @brief Runs a step of Hybrid Monte Carlo (HMC) on a model m.  
@@ -177,6 +195,7 @@ public:
     {
         if(!store_proposed_)
         {
+            // why not return boost::none here? -- Kyle, 11/11/13
             static boost::optional<Model> empty_model;
             return empty_model;
         }
@@ -326,7 +345,7 @@ protected:
      *          fairly difficult, a trajectory with m_length = 100 might be
      *          a suitable starting point". 
      */
-    const int num_dynamics_steps_;
+    int num_dynamics_steps_;
 
     /** @brief  Amount of stochastic update to apply to momentum. */
     double alpha_;
@@ -356,14 +375,14 @@ protected:
     boost::uniform_real<> uni_dist_;
 
     /** @brief  Generates uniform random numbers. */
-    mutable boost::variate_generator<rng_t&, boost::uniform_real<> > uni_rand_;
+    mutable boost::variate_generator<rng_t*, boost::uniform_real<> > uni_rand_;
 
     /** @brief  Normal distribution -- used for generating normal samples. */
     boost::normal_distribution<> norm_dist_;
 
     /** @brief  Generates normal random numbers. */
     mutable
-    boost::variate_generator<rng_t&, boost::normal_distribution<> > norm_rand_;
+    boost::variate_generator<rng_t*, boost::normal_distribution<> > norm_rand_;
 
     /** @brief  Potential energy of model before simulating dynamics */
     mutable double U_;
@@ -413,6 +432,12 @@ void hmc_step<Model, ACCEPT_STEP, REVERSIBLE>::operator()(
     
     const bool CONSTRAINED_TARGET = !lower_bounds_.empty();
     const size_t hmc_dim = size_(&q);
+
+    if(hmc_dim != step_sizes_.size())
+    {
+        throw dimension_mismatch("Model dimension doesn't match numer of step_size elements.", __FILE__, __LINE__);
+    }
+
 
     // make sure dimension of p is the same as of the model
     if(p_.size() != hmc_dim)

@@ -15,6 +15,36 @@
 //#include <boost/static_assert.hpp>
 
 namespace ergo {
+
+template <class Iterator>
+struct output_iterator_traits
+{
+    typedef typename Iterator::value_type value_type;
+};
+
+template <class T>
+struct output_iterator_traits<std::insert_iterator<T> >
+{
+    typedef typename T::value_type value_type;
+};
+
+template <class T, class charT, class traits>
+struct output_iterator_traits<std::ostream_iterator<T, charT, traits> >
+{
+    typedef typename T::value_type value_type;
+};
+
+template <class T>
+struct output_iterator_traits<std::front_insert_iterator<T> >
+{
+    typedef typename T::value_type value_type;
+};
+ 
+template <class T>
+struct output_iterator_traits<std::back_insert_iterator<T> >
+{
+    typedef typename T::value_type value_type;
+};
  
 /**
  * @struct  step_detail
@@ -257,11 +287,11 @@ private:
 template <class OutputIterator>
 inline
 sample_recorder<
-    typename std::iterator_traits<OutputIterator>::value_type,
+    typename output_iterator_traits<OutputIterator>::value_type,
     OutputIterator>
 make_sample_recorder(OutputIterator it)
 {
-    typedef typename std::iterator_traits<OutputIterator>::value_type Model;
+    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
     return sample_recorder<Model, OutputIterator>(it);
 }
 
@@ -372,11 +402,11 @@ private:
 template <class OutputIterator>
 inline
 best_sample_recorder<
-    typename std::iterator_traits<OutputIterator>::value_type,
+    typename output_iterator_traits<OutputIterator>::value_type,
     OutputIterator>
 make_best_sample_recorder(OutputIterator it)
 {
-    typedef typename std::iterator_traits<OutputIterator>::value_type Model;
+    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
     return best_sample_recorder<Model, OutputIterator>(it);
 }
 
@@ -410,11 +440,11 @@ private:
 template <class OutputIterator>
 inline
 proposed_recorder<
-    typename std::iterator_traits<OutputIterator>::value_type,
+    typename output_iterator_traits<OutputIterator>::value_type,
     OutputIterator>
 make_proposed_recorder(OutputIterator it)
 {
-    typedef typename std::iterator_traits<OutputIterator>::value_type Model;
+    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
     return proposed_recorder<Model, OutputIterator>(it);
 }
 
