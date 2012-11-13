@@ -76,7 +76,7 @@ public:
         log_target_(log_target),
         propose_(propose),
         temperature_(1.0),
-        name_("generic-mh"),
+        name_("generic-mh-step"),
         store_proposed_(false),
         uni_dist_(0, 1),
         uni_rand(rng<rng_t>(), uni_dist_)
