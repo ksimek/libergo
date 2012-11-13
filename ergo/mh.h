@@ -141,6 +141,7 @@ public:
     {
         if(!store_proposed_)
         {
+            // why not just return boost::none here?  avoids needing a static - Kyle 11/11/12
             static boost::optional<Model> empty_model;
             return empty_model;
         }
@@ -216,6 +217,8 @@ void mh_step<Model>::operator()(Model& m, double& log_target) const
     mh_proposal_result p_res = propose_(m, m_p);
     fwd_proposal_prob_ = p_res.fwd;
     rev_proposal_prob_ = p_res.rev;
+
+    // TODO: do we really want to overwrite this step's name?
     if(p_res.name != "")
     {
         name_ = p_res.name;
