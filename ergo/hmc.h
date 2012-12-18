@@ -61,7 +61,9 @@ public:
 
     /** @brief  Document!!! 
      *
-     * @param alpha Amount of momentum to preserve between calls, in [0,1].  If set to > 0.0 an exception will be thrown if the model may changes dimension between calls. 
+     * @param alpha Amount of momentum to preserve between calls, in [0,1]. 
+     *              If set to > 0.0 an exception will be thrown if the model
+     *              may changes dimension between calls. 
      */
     template <class VectorAdapter, class Evaluate, class Gradient>
     hmc_step(
@@ -101,7 +103,9 @@ public:
 
     /** @brief  Document!!! 
      *
-     * @param alpha Amount of momentum to preserve between calls, in [0,1].  If set to > 0.0 an exception will be thrown if the model may changes dimension between calls. 
+     * @param alpha Amount of momentum to preserve between calls, in [0,1]. 
+     *              If set to > 0.0 an exception will be thrown if the model
+     *              may changes dimension between calls. 
      */
     template <class Evaluate, class Gradient>
     hmc_step(
