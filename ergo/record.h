@@ -11,41 +11,57 @@
 #include <boost/variant.hpp>
 #include <boost/io/ios_state.hpp>
 #include <boost/optional.hpp>
-//#include <boost/type_traits.hpp>
-//#include <boost/static_assert.hpp>
 
 namespace ergo {
 
-template <class Iterator>
-struct output_iterator_traits
+/** 
+ * @defgroup    traits_helpers  Traits helpers
+ * @{
+ *
+ * These structs are used to determine the type that an iterator uses to
+ * record. There are three types (generic, output, and ostream) and each type
+ * handles its type differently.
+ */
+
+/** @brief  Helper struct for generic iterator traits. */
+template<class Iterator, class IteratorCategory>
+struct record_traits_helper
 {
-    typedef typename Iterator::value_type value_type;
+    typedef typename std::iterator_traits<Iterator>::value_type record_type;
 };
 
-template <class T>
-struct output_iterator_traits<std::insert_iterator<T> >
+/** @brief  Helper struct for output iterator traits. */
+template<class OutputIterator>
+struct record_traits_helper<OutputIterator, std::output_iterator_tag>
 {
-    typedef typename T::value_type value_type;
+    typedef typename OutputIterator::container_type::value_type record_type;
 };
 
-template <class T, class charT, class traits>
-struct output_iterator_traits<std::ostream_iterator<T, charT, traits> >
+/** @brief  Helper struct for ostream_iterator traits. */
+template<class T, class CharT, class Traits>
+struct record_traits_helper<std::ostream_iterator<T, CharT, Traits>, 
+                            std::output_iterator_tag>
 {
-    typedef typename T::value_type value_type;
+    typedef T record_type;
 };
 
-template <class T>
-struct output_iterator_traits<std::front_insert_iterator<T> >
+/** @} */
+
+/**
+ * @brief   Traits for iterators when used with recorders. Used to define
+ *          the record_type.
+ */
+template<class Iterator>
+struct record_iterator_traits
 {
-    typedef typename T::value_type value_type;
+private:
+    typedef typename std::iterator_traits<Iterator>::iterator_category category;
+    typedef record_traits_helper<Iterator, category> helper;
+
+public:
+    typedef typename helper::record_type record_type;
 };
- 
-template <class T>
-struct output_iterator_traits<std::back_insert_iterator<T> >
-{
-    typedef typename T::value_type value_type;
-};
- 
+
 /**
  * @struct  step_detail
  * @brief   Stores assorted details about the execution of a sampling step.
@@ -172,20 +188,17 @@ public:
     typedef step_detail record_type;
 
     /** @brief  Construct a recorder. */
-    default_detail_recorder(
-        const std::string& type,
-        OutputIterator it
-    ) :
-        step_detail_(),
-        it_(it)
+    default_detail_recorder(const std::string& type, OutputIterator it) :
+        it_(it), increment_(true)
     {
-        //using std::iterator_traits;
-        //typedef typename iterator_traits<OutputIterator>::value_type value_type;
-        //BOOST_STATIC_ASSERT_MSG(
-        //        typename boost::is_convertible<step_detail, value_type>::value, 
-        //        "step_detail must be convertible to OutputIterator::value_type");
-
         step_detail_.type = type;
+    }
+
+    /** @brief  Force replacing of recorded value every time. */
+    default_detail_recorder& replace()
+    {
+        increment_ = false;
+        return *this;
     }
 
     /** @brief  Records a step. */
@@ -194,12 +207,14 @@ public:
     {
         step_detail_.log_target = log_target;
         step_detail_.name = step.name();
-        *it_++ = step_detail_;
+        *it_ = step_detail_;
+        if(increment_) it_++;
     }
 
 private:
     step_detail step_detail_;
     OutputIterator it_;
+    bool increment_;
 };
 
 /** @brief  Convenience function to create a default_detail_recorder. */
@@ -224,24 +239,27 @@ public:
     typedef double record_type;
 
     /** @brief  Constructs a recorder. */
-    target_recorder(OutputIterator it) : it_(it)
-    { 
-        //using std::iterator_traits;
-        //typedef typename iterator_traits<OutputIterator>::value_type value_type;
-        //BOOST_STATIC_ASSERT_MSG(
-        //        boost::is_convertible<double, value_type>::value, 
-        //        "double must be convertible to OutputIterator::value_type");
+    target_recorder(OutputIterator it) : it_(it), increment_(true)
+    {}
+
+    /** @brief  Force replacing of recorded value every time. */
+    target_recorder& replace()
+    {
+        increment_ = false;
+        return *this;
     }
 
     /** @brief  Records a step. */
     template <class Step, class Model>
     void operator()(const Step&, const Model&, double log_target)
     {
-        *it_++ = log_target;
+        *it_ = log_target;
+        if(increment_) it_++;
     }
 
 private:
     OutputIterator it_;
+    bool increment_;
 };
 
 /** @brief  Convenience function to create a target_recorder. */
@@ -263,36 +281,40 @@ public:
     typedef Model record_type;
 
     /** @brief  Construct a recorder. */
-    sample_recorder(OutputIterator it) : it_(it)
-    { 
-        //using std::iterator_traits;
-        //typedef typename iterator_traits<OutputIterator>::value_type value_type;
-        //BOOST_STATIC_ASSERT_MSG(
-        //        boost::is_convertible<Model, value_type>::value, 
-        //        "Model must be convertible to Iterator::value_type");
+    sample_recorder(OutputIterator it) : it_(it), increment_(true)
+    {}
+
+    /** @brief  Force replacing of recorded value every time. */
+    sample_recorder& replace()
+    {
+        increment_ = false;
+        return *this;
     }
 
     /** @brief  Record a step. */
     template <class Step>
     void operator()(const Step&, const Model& model, double)
     {
-        *it_++ = model;
+        *it_ = model;
+        if(increment_) it_++;
     }
 
 private:
     OutputIterator it_;
+    bool increment_;
 };
 
 /** @brief  Convenience function to create a sample_recorder. */
 template <class OutputIterator>
 inline
 sample_recorder<
-    typename output_iterator_traits<OutputIterator>::value_type,
+    typename record_iterator_traits<OutputIterator>::record_type,
     OutputIterator>
 make_sample_recorder(OutputIterator it)
 {
-    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
-    return sample_recorder<Model, OutputIterator>(it);
+    typedef typename record_iterator_traits<OutputIterator>::record_type
+            model_type;
+    return sample_recorder<model_type, OutputIterator>(it);
 }
 
 /**
@@ -402,12 +424,13 @@ private:
 template <class OutputIterator>
 inline
 best_sample_recorder<
-    typename output_iterator_traits<OutputIterator>::value_type,
+    typename record_iterator_traits<OutputIterator>::record_type,
     OutputIterator>
 make_best_sample_recorder(OutputIterator it)
 {
-    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
-    return best_sample_recorder<Model, OutputIterator>(it);
+    typedef typename record_iterator_traits<OutputIterator>::record_type
+            model_type;
+    return best_sample_recorder<model_type, OutputIterator>(it);
 }
 
 /**
@@ -422,30 +445,40 @@ public:
     typedef Model record_type;
 
     /** @brief  Construct a recorder. */
-    proposed_recorder(OutputIterator it) : it_(it)
+    proposed_recorder(OutputIterator it) : it_(it), increment_(true)
     {}
+
+    /** @brief  Force replacing of recorded value every time. */
+    proposed_recorder& replace()
+    {
+        increment_ = false;
+        return *this;
+    }
 
     /** @brief  Record a step. */
     template <class Step>
     void operator()(const Step& step, const Model&, double)
     {
-        *it_++ = *step.proposed_model();
+        *it_ = *step.proposed_model();
+        if(increment_) it_++;
     }
 
 private:
     OutputIterator it_;
+    bool increment_;
 };
 
 /** @brief  Convenience function to create a best_sample_recorder. */
 template <class OutputIterator>
 inline
 proposed_recorder<
-    typename output_iterator_traits<OutputIterator>::value_type,
+    typename record_iterator_traits<OutputIterator>::record_type,
     OutputIterator>
 make_proposed_recorder(OutputIterator it)
 {
-    typedef typename output_iterator_traits<OutputIterator>::value_type Model;
-    return proposed_recorder<Model, OutputIterator>(it);
+    typedef typename record_iterator_traits<OutputIterator>::record_type
+            model_type;
+    return proposed_recorder<model_type, OutputIterator>(it);
 }
 
 /** @} */

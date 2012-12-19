@@ -79,7 +79,7 @@ public:
         name_("generic-mh-step"),
         store_proposed_(false),
         uni_dist_(0, 1),
-        uni_rand(rng<rng_t>(), uni_dist_)
+        uni_rand(&rng<rng_t>(), uni_dist_)
     {}
 
     /**
@@ -188,7 +188,7 @@ private:
     bool store_proposed_;
 
     boost::uniform_real<> uni_dist_;
-    mutable boost::variate_generator<rng_t&, boost::uniform_real<> > uni_rand;
+    mutable boost::variate_generator<rng_t*, boost::uniform_real<> > uni_rand;
 
     mutable std::vector<record_t> recorders_;
 };

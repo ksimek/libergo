@@ -90,9 +90,9 @@ public:
         lower_bounds_(),
         upper_bounds_(),
         uni_dist_(0, 1),
-        uni_rand_(rng<rng_t>(), uni_dist_),
+        uni_rand_(&rng<rng_t>(), uni_dist_),
         norm_dist_(0, 1),
-        norm_rand_(rng<rng_t>(), norm_dist_),
+        norm_rand_(&rng<rng_t>(), norm_dist_),
         store_proposed_(false)
     {
         boost::shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
