@@ -1,8 +1,6 @@
 #ifndef ERGO_UTIL_H
 #define ERGO_UTIL_H
 
-#include <vector>
-
 /**
  * @file    util.h
  * @brief   File for utility classes and functions.
