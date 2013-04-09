@@ -137,15 +137,13 @@ public:
         store_proposed_(false)
     {}
 
-    /** @brief Reset step.  Momentum is discarded **/
+    /** @brief Reset step. Momentum is discarded. */
     void reset() { if(alpha_ != 0.0) p_.resize(0); }
 
-    /** @brief Reset step with new step sizes.  Momentum is discarded **/
-    void reset( const vec_t& step_sizes)
+    /** @brief Reset step with new step sizes. Momentum is discarded. */
+    void reset(const vec_t& step_sizes)
     {
-        if(alpha_ != 0.0)
-            p_.resize(0);
-
+        reset();
         step_sizes_ = step_sizes;
     }
 
