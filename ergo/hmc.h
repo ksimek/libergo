@@ -193,16 +193,14 @@ public:
      * to save proposed models (via store_proposed()), or if the step has not
      * been executed yet, this function returns boost::none.
      */
-    const boost::optional<Model>& proposed_model() const
+    boost::optional<const Model&> proposed_model() const
     {
-        if(!store_proposed_)
+        if(store_proposed_)
         {
-            // why not return boost::none here? -- Kyle, 11/11/13
-            static boost::optional<Model> empty_model;
-            return empty_model;
+            return boost::optional<const Model&>(*proposed_model_);
         }
-    
-        return proposed_model_;
+
+        return boost::none;
     }
 
     /** @brief  Was previous step accepted? */
@@ -437,7 +435,10 @@ void hmc_step<Model, ACCEPT_STEP, REVERSIBLE>::operator()(
 
     if(hmc_dim != step_sizes_.size())
     {
-        throw dimension_mismatch("Model dimension doesn't match numer of step_size elements.", __FILE__, __LINE__);
+        throw dimension_mismatch(
+                "Model dimension doesn't match numer of step_size elements.",
+                __FILE__,
+                __LINE__);
     }
 
 
