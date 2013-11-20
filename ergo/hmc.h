@@ -137,15 +137,21 @@ public:
         store_proposed_(false)
     {}
 
-    /** @brief Reset step. Momentum is discarded. */
+    /** @brief  Reset step. Momentum is discarded. */
     void reset() { if(alpha_ != 0.0) p_.resize(0); }
 
-    /** @brief Reset step with new step sizes. Momentum is discarded. */
+    /** @brief  Reset step with new step sizes. Momentum is discarded. */
     void reset(const vec_t& step_sizes)
     {
         reset();
         step_sizes_ = step_sizes;
     }
+
+    /** @brief  Set the number of dynamics steps. */
+    void set_num_dynamics_steps(size_t nds) { num_dynamics_steps_ = nds; }
+
+    /** @brief  Returns the number of dynamics steps. */
+    size_t num_dynamics_steps() const { return num_dynamics_steps_; }
 
     /** 
      * @brief Runs a step of Hybrid Monte Carlo (HMC) on a model m.  
