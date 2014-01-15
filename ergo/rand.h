@@ -19,11 +19,15 @@ template <class Rng>
 inline
 Rng& rng()
 {
-    static Rng r;
-    return r;
+    static Rng* r = NULL;
+    if(!r)
+    {   
+        std::cerr <<  "WARNING: deprecated use of global random number generator" << std::endl;
+        r = new Rng;
+    }
+    return *r;
 }
 
 } //namespace ergo
 
 #endif //ERGO_RAND_H
-

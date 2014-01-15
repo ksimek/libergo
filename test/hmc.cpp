@@ -3,6 +3,8 @@
 /**
  * @file test/hmc.cpp
  * Test of Hamiltonian Monte Carlo algorithm.
+ *
+ * @TODO Test the adaptor-free constructor
  */
 
 #define TEST
@@ -79,13 +81,27 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<double> densities(NUM_ITERATIONS);
 
-    hmc_step<Real> step(
+    ergo::shared_ptr<boost::mt19937> mt_rng = ergo::make_shared<boost::mt19937>();
+    mt_rng->seed(12345);
+
+    // Testing deprecated constructor
+    hmc_step<Real> step_old(
             Real_vector_adapter(),
             target_distribution,
             gradient,
             STEP_SIZE,
             NUM_DYNAMICS_STEPS,
             MOMENTUM_ALPHA);
+
+    // testing new constructor, passing rng
+    hmc_step<Real> step(
+            Real_vector_adapter(),
+            target_distribution,
+            gradient,
+            STEP_SIZE,
+            NUM_DYNAMICS_STEPS,
+            MOMENTUM_ALPHA,
+            mt_rng);
 
     Real cur_model = -10;
     double cur_target = target_distribution(cur_model);

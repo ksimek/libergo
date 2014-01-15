@@ -3,6 +3,7 @@
 #ifndef ERGO_HMC_H
 #define ERGO_HMC_H
 
+#include <ergo/def.h>
 #include <ergo/util.h>
 #include <ergo/exception.h>
 #include <ergo/rand.h>
@@ -15,7 +16,7 @@
 #include <boost/function.hpp>
 #include <boost/optional.hpp>
 #include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/variate_generator.hpp>
 #include <boost/math/distributions/normal.hpp>
@@ -45,13 +46,12 @@ namespace ergo {
  *                          evaluations, in some configurations (i.e. if we
  *                          accept_step = false, and alpha > 0).
  */
-template<typename Model, bool ACCEPT_STEP = true, bool REVERSIBLE = true>
+template<typename Model, typename rng_t = boost::mt19937, bool ACCEPT_STEP = true, bool REVERSIBLE = true>
 class hmc_step
 {
 public:
     // typedefs
     typedef std::vector<double> vec_t;
-    typedef boost::mt19937 rng_t;
     typedef boost::function1<double, const Model&> evaluate_t;
     typedef boost::function1<vec_t, const Model&> gradient_t;
     typedef boost::function3<void, const hmc_step&, const Model&, double>
@@ -59,11 +59,43 @@ public:
 
 public:
 
-    /** @brief  Document!!! 
+    /** @brief  Constructor with vector adapter
      *
-     * @param alpha Amount of momentum to preserve between calls, in [0,1]. 
-     *              If set to > 0.0 an exception will be thrown if the model
-     *              may changes dimension between calls. 
+     * It is required for HMC simulation that the model be interpreted as a 
+     * vector of real-numbers.  This constructor allows the model object to 
+     * be wrapped in a vector interface implemented by \c adapter.  The 
+     * \a VectorAdapter concept is simple: it must implement three members:
+     * get, set, and size, with the following syntex:
+     *
+     * \code{.cpp}
+     *     Model m;
+     *     double x = a.get(m, i);
+     *     m.set(m, i, x);
+     *     size_t i = m.size();
+     * \endcode
+     *
+     * @param adapter     Wrapper for Model type that makes it appear like a 
+     *                    vector, i.e. implements get(), set(), and size().
+     *
+     * @param log_target  Logarithm of the target distribution, e.g. a log-
+     *                    posterior distribution.  Function (object) must 
+     *                    recieve Model and return double.
+     *
+     * @param gradient    Gradient of log_target.  Receives Model and returns 
+     *                    vector of doubles.
+     *
+     * @param step_sizes  Simulation step size, one element per dimension.
+     *
+     * @param num_steps   Number of iterations to run the dynamics simulation 
+     *                    for each step.  Larger values reduce random walk 
+     *                    behavior, but increases computation time and could 
+     *                    increase rejection rate.
+     *
+     * @param alpha       Amount of momentum to preserve between calls, in [0,1]. 
+     *                    If set to > 0.0 an exception will be thrown if the model
+     *                    changes dimension between calls. 
+     *
+     * @param rng_in      Random number generator object.
      */
     template <class VectorAdapter, class Evaluate, class Gradient>
     hmc_step(
@@ -71,41 +103,65 @@ public:
         const Evaluate& log_target, 
         const Gradient& gradient,
         const vec_t& step_sizes,
-        int num_dynamics_steps,
-        double alpha = 0.0
-    ) :
-        get_(),
-        set_(),
-        size_(),
-        log_target_(log_target),
-        gradient_(gradient),
-        step_sizes_(step_sizes),
-        num_dynamics_steps_(num_dynamics_steps),
-        alpha_(alpha),
-        p_(),
-        first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
-        last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
-        temperature_(1.0),
-        name_("generic-hmc-step"),
-        lower_bounds_(),
-        upper_bounds_(),
-        uni_dist_(0, 1),
-        uni_rand_(&rng<rng_t>(), uni_dist_),
-        norm_dist_(0, 1),
-        norm_rand_(&rng<rng_t>(), norm_dist_),
-        store_proposed_(false)
-    {
-        boost::shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
-        get_ = boost::bind<double>(&VectorAdapter::get, a_p, _1, _2);
-        set_ = boost::bind<void>(&VectorAdapter::set, a_p, _1, _2, _3);
-        size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
-    }
+        int num_steps,
+        double alpha,
+        const shared_ptr<rng_t>& rng_in
+    );
+    
 
-    /** @brief  Document!!! 
+    /** @brief  Adaptorless constructor
      *
-     * @param alpha Amount of momentum to preserve between calls, in [0,1]. 
-     *              If set to > 0.0 an exception will be thrown if the model
-     *              may changes dimension between calls. 
+     * It is required for HMC simulation that the model be interpreted as a 
+     * vector of real-numbers. This constructor assumes the model already 
+     * implements vector semantics, i.e. implements std::vector's operator[]
+     * and size() functions.
+     *
+     * For models that don't implement vector semantics, or to achieve 
+     * different semantics (e.g. for block sampling), use the other 
+     * constructor that receives an adapter wrapper.
+     *
+     * @param log_target  Logarithm of the target distribution, e.g. a log-
+     *                    posterior distribution.  Function (object) must 
+     *                    recieve Model and return double.
+     *
+     * @param gradient    Gradient of log_target.  Receives Model and returns 
+     *                    vector of doubles.
+     *
+     * @param step_sizes  Simulation step size, one element per dimension.
+     *
+     * @param alpha       Amount of momentum to preserve between calls, in 
+     *                    [0,1].  If set to > 0.0 an exception will be thrown 
+     *                    if the model changes dimension between calls. 
+     */
+    template <class Evaluate, class Gradient>
+    hmc_step(
+        const Evaluate& log_target, 
+        const Gradient& gradient,
+        const vec_t& step_sizes,
+        int num_dynamics_steps,
+        double alpha,
+        const shared_ptr<rng_t>& rng_in 
+    );
+
+    /** @brief  Construct a hybrid Monte Carlo step
+     *
+     * @deprecated Please use the constructors that explicitly recieve 
+     *             a random number generator object.
+     */
+    template <class VectorAdapter, class Evaluate, class Gradient>
+    hmc_step(
+        const VectorAdapter& adapter,
+        const Evaluate& log_target, 
+        const Gradient& gradient,
+        const vec_t& step_sizes,
+        int num_steps,
+        double alpha = 0.0
+    );
+    
+    /** @brief  Construct a hybrid Monte Carlo step
+     *
+     * @deprecated Please use the constructors that explicitly recieve 
+     *             a random number generator object.
      */
     template <class Evaluate, class Gradient>
     hmc_step(
@@ -114,28 +170,7 @@ public:
         const vec_t& step_sizes,
         int num_dynamics_steps,
         double alpha = 0.0
-    ) :  
-        get_(boost::bind<double>(vector_get<Model>, _1, _2)),
-        set_(boost::bind<void>(vector_set<Model>, _1, _2, _3)),
-        size_(boost::bind<size_t>(&Model::size, _1)),
-        log_target_(log_target),
-        gradient_(gradient),
-        step_sizes_(step_sizes),
-        num_dynamics_steps_(num_dynamics_steps),
-        alpha_(alpha),
-        p_(),
-        first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
-        last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
-        temperature_(1.0),
-        name_("generic-hmc-step"),
-        lower_bounds_(),
-        upper_bounds_(),
-        uni_dist_(0, 1),
-        uni_rand_(&rng<rng_t>(), uni_dist_),
-        norm_dist_(0, 1),
-        norm_rand_(&rng<rng_t>(), norm_dist_),
-        store_proposed_(false)
-    {}
+    );
 
     /** @brief  Reset step. Momentum is discarded. */
     void reset() { if(alpha_ != 0.0) p_.resize(0); }
@@ -377,18 +412,21 @@ protected:
     /** @brief  State vector will never be larger than this. */
     vec_t upper_bounds_;
 
+    /** @brief  Random number generator -- used for generating random samples. */
+    shared_ptr<rng_t> rng_;
+
     /** @brief  Uniform distribution -- used for generating uniform samples. */
-    boost::uniform_real<> uni_dist_;
+    boost::random::uniform_real_distribution<> uni_dist_;
 
     /** @brief  Generates uniform random numbers. */
-    mutable boost::variate_generator<rng_t*, boost::uniform_real<> > uni_rand_;
+    mutable boost::variate_generator<rng_t*, boost::random::uniform_real_distribution<> > uni_rand_;
 
     /** @brief  Normal distribution -- used for generating normal samples. */
-    boost::normal_distribution<> norm_dist_;
+    boost::random::normal_distribution<> norm_dist_;
 
     /** @brief  Generates normal random numbers. */
     mutable
-    boost::variate_generator<rng_t*, boost::normal_distribution<> > norm_rand_;
+    boost::variate_generator<rng_t*, boost::random::normal_distribution<> > norm_rand_;
 
     /** @brief  Potential energy of model before simulating dynamics */
     mutable double U_;
@@ -420,8 +458,158 @@ protected:
 
 /* \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ */
 
-template<class Model, bool ACCEPT_STEP, bool REVERSIBLE>
-void hmc_step<Model, ACCEPT_STEP, REVERSIBLE>::operator()(
+template<class Model, class rng_t, bool ACCEPT_STEP, bool REVERSIBLE>
+template <class VectorAdapter, class Evaluate, class Gradient>
+hmc_step<Model, rng_t, ACCEPT_STEP, REVERSIBLE>::hmc_step(
+    const VectorAdapter& adapter,
+    const Evaluate& log_target, 
+    const Gradient& gradient,
+    const vec_t& step_sizes,
+    int num_steps,
+    double alpha,
+    const shared_ptr<rng_t>& rng_in
+) :
+    get_(),
+    set_(),
+    size_(),
+    log_target_(log_target),
+    gradient_(gradient),
+    step_sizes_(step_sizes),
+    num_dynamics_steps_(num_steps),
+    alpha_(alpha),
+    p_(),
+    first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    temperature_(1.0),
+    name_("generic-hmc-step"),
+    lower_bounds_(),
+    upper_bounds_(),
+    rng_(rng_in),
+    uni_dist_(0, 1),
+    uni_rand_(rng_.get(), uni_dist_),
+    norm_dist_(0, 1),
+    norm_rand_(rng_.get(), norm_dist_),
+    store_proposed_(false)
+{
+    // shared_ptr allows get_, set_, and size_ to own the adapter, and avoids us
+    // having to store it explicitly in this object.
+    boost::shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
+    get_ = boost::bind<double>(&VectorAdapter::get, a_p, _1, _2);
+    set_ = boost::bind<void>(&VectorAdapter::set, a_p, _1, _2, _3);
+    size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
+}
+
+template<class Model, class rng_t, bool ACCEPT_STEP, bool REVERSIBLE>
+template <class Evaluate, class Gradient>
+hmc_step<Model, rng_t, ACCEPT_STEP, REVERSIBLE>::hmc_step(
+    const Evaluate& log_target, 
+    const Gradient& gradient,
+    const vec_t& step_sizes,
+    int num_dynamics_steps,
+    double alpha,
+    const shared_ptr<rng_t>& rng_in 
+) :  
+    get_(boost::bind<double>(vector_get<Model>, _1, _2)),
+    set_(boost::bind<void>(vector_set<Model>, _1, _2, _3)),
+    size_(boost::bind<size_t>(&Model::size, _1)),
+    log_target_(log_target),
+    gradient_(gradient),
+    step_sizes_(step_sizes),
+    num_dynamics_steps_(num_dynamics_steps),
+    alpha_(alpha),
+    p_(),
+    first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    temperature_(1.0),
+    name_("generic-hmc-step"),
+    lower_bounds_(),
+    upper_bounds_(),
+    rng_(rng_in),
+    uni_dist_(0, 1),
+    uni_rand_(rng_.get(), uni_dist_),
+    norm_dist_(0, 1),
+    norm_rand_(rng_.get(), norm_dist_),
+    store_proposed_(false)
+{}
+
+// deprecated
+template<class Model, class rng_t, bool ACCEPT_STEP, bool REVERSIBLE>
+template <class VectorAdapter, class Evaluate, class Gradient>
+hmc_step<Model, rng_t, ACCEPT_STEP, REVERSIBLE>::hmc_step(
+    const VectorAdapter& adapter,
+    const Evaluate& log_target, 
+    const Gradient& gradient,
+    const vec_t& step_sizes,
+    int num_steps,
+    double alpha
+) :
+    get_(),
+    set_(),
+    size_(),
+    log_target_(log_target),
+    gradient_(gradient),
+    step_sizes_(step_sizes),
+    num_dynamics_steps_(num_steps),
+    alpha_(alpha),
+    p_(),
+    first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    temperature_(1.0),
+    name_("generic-hmc-step"),
+    lower_bounds_(),
+    upper_bounds_(),
+    rng_(),
+    uni_dist_(0, 1),
+    uni_rand_(&rng<rng_t>(), uni_dist_),
+    norm_dist_(0, 1),
+    norm_rand_(&rng<rng_t>(), norm_dist_),
+    store_proposed_(false)
+{
+    // shared_ptr allows get_, set_, and size_ to own the adapter, and avoids us
+    // having to store it explicitly in this object.
+    boost::shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
+    get_ = boost::bind<double>(&VectorAdapter::get, a_p, _1, _2);
+    set_ = boost::bind<void>(&VectorAdapter::set, a_p, _1, _2, _3);
+    size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
+}
+
+
+// deprecated
+template<class Model, class rng_t, bool ACCEPT_STEP, bool REVERSIBLE>
+template <class Evaluate, class Gradient>
+hmc_step<Model, rng_t, ACCEPT_STEP, REVERSIBLE>::hmc_step(
+    const Evaluate& log_target, 
+    const Gradient& gradient,
+    const vec_t& step_sizes,
+    int num_dynamics_steps,
+    double alpha
+) :  
+    get_(boost::bind<double>(vector_get<Model>, _1, _2)),
+    set_(boost::bind<void>(vector_set<Model>, _1, _2, _3)),
+    size_(boost::bind<size_t>(&Model::size, _1)),
+    log_target_(log_target),
+    gradient_(gradient),
+    step_sizes_(step_sizes),
+    num_dynamics_steps_(num_dynamics_steps),
+    alpha_(alpha),
+    p_(),
+    first_p_full_(is_first_p_full_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    last_p_ignore_(is_last_p_ignored_(alpha, ACCEPT_STEP, REVERSIBLE)),
+    temperature_(1.0),
+    name_("generic-hmc-step"),
+    lower_bounds_(),
+    upper_bounds_(),
+    rng_(),
+    uni_dist_(0, 1),
+    uni_rand_(&rng<rng_t>(), uni_dist_),
+    norm_dist_(0, 1),
+    norm_rand_(&rng<rng_t>(), norm_dist_),
+    store_proposed_(false)
+{}
+
+
+template<class Model, class rng_t, bool ACCEPT_STEP, bool REVERSIBLE>
+void hmc_step<Model, rng_t, ACCEPT_STEP, REVERSIBLE>::operator()(
     Model& q,
     double& lt_q) const
 {
@@ -783,9 +971,9 @@ public:
     hmc_detail_recorder(OutputIterator it) : it_(it) 
     {}
 
-    template <class Model, bool AS, bool R>
+    template <class Model, class rng_t, bool AS, bool R>
     void operator()(
-        const hmc_step<Model, AS, R>& step,
+        const hmc_step<Model, rng_t, AS, R>& step,
         const Model&,
         double log_target)
     {

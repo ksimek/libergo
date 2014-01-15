@@ -12,6 +12,7 @@
 #include <functional>
 #include <boost/random.hpp>
 #include <boost/math/distributions/normal.hpp>
+#include <boost/make_shared.hpp>
 
 using namespace ergo;
 
@@ -73,7 +74,8 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<Real> densities(NUM_ITERATIONS);
 
-    mh_step<Real> step(target_distribution, propose);
+    mh_step<Real> step_depr(target_distribution, propose);
+    mh_step<Real, base_generator_type> step(target_distribution, propose, boost::make_shared<base_generator_type>(base_rng));
 
     Real cur_model = -10;
     double cur_target = target_distribution(cur_model);

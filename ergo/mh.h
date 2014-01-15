@@ -1,6 +1,7 @@
 #ifndef ERGO_MH_H
 #define ERGO_MH_H
 
+#include <ergo/def.h>
 #include <ergo/rand.h>
 #include <ergo/record.h>
 #include <cmath>
@@ -9,7 +10,7 @@
 #include <string>
 #include <boost/function.hpp>
 #include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real.hpp>
+#include <boost/random/uniform_real_distribution.hpp>
 #include <boost/random/variate_generator.hpp>
 #include <boost/optional.hpp>
 #include <boost/bind.hpp>
@@ -46,12 +47,11 @@ struct mh_proposal_result
  * This class implements the canonical MH step logic. To use it, you must
  * have a target distribution and a proposal mechanism.
  */
-template <class Model>
+template <class Model, class rng_t = boost::mt19937>
 class mh_step
 {
 private:
     // typedefs
-    typedef boost::mt19937 rng_t;
     typedef boost::function1<double, const Model&> evaluate_t;
     typedef boost::function2<mh_proposal_result, const Model&, Model&>
             propose_t;
@@ -61,6 +61,8 @@ private:
 public:
     /**
      * @brief  Construct a MH step object.
+     *
+     * @deprecated{This constructor is deprecated. Please use the constructor that receives a random number generator.}
      *
      * Construct a Metropolis-Hastings sampling step with the given target
      * distribution and proposal distribution.
@@ -79,7 +81,32 @@ public:
         name_("generic-mh-step"),
         store_proposed_(false),
         uni_dist_(0, 1),
+        rng_(),
         uni_rand(&rng<rng_t>(), uni_dist_)
+    {}
+
+    /**
+     * @brief  Construct a MH step object.
+     *
+     * Construct a Metropolis-Hastings sampling step with the given target
+     * distribution, proposal distribution, and random number generator.
+     *
+     * @tparam  Evaluate    A unary function type; receives a Model by
+     *                      const-ref and returns a double.
+     *
+     * @tparam  Propose     The proposer type; must comply with MH proposal
+     *                      concept.
+     */
+    template <class Evaluate, class Propose>
+    mh_step(const Evaluate& log_target, const Propose& propose, shared_ptr<rng_t> rng_in ) :
+        log_target_(log_target),
+        propose_(propose),
+        temperature_(1.0),
+        name_("generic-mh-step"),
+        store_proposed_(false),
+        uni_dist_(0, 1),
+        rng_(rng_in),
+        uni_rand(rng_.get(), uni_dist_)
     {}
 
     /**
@@ -185,16 +212,17 @@ private:
     mutable boost::optional<Model> proposed_model_;
     bool store_proposed_;
 
-    boost::uniform_real<> uni_dist_;
-    mutable boost::variate_generator<rng_t*, boost::uniform_real<> > uni_rand;
+    boost::random::uniform_real_distribution<> uni_dist_;
+    shared_ptr<rng_t> rng_;
+    mutable boost::variate_generator<rng_t*, boost::random::uniform_real_distribution<> > uni_rand;
 
     mutable std::vector<record_t> recorders_;
 };
 
 /* \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ */
 
-template <class Model>
-void mh_step<Model>::operator()(Model& m, double& log_target) const
+template <class Model, class rng_t>
+void mh_step<Model, rng_t>::operator()(Model& m, double& log_target) const
 {
     current_target_ = log_target;
 
