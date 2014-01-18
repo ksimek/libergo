@@ -278,6 +278,9 @@ public:
     template <class Recorder>
     void add_recorder(const Recorder& rec) { recorders_.push_back(rec); }
 
+    /** @brief  Remove all recorders from step. */
+    void clear_recorder() { recorders_.clear(); }
+
 private:
     /**
      * @brief   Determine whether the full leapfrog step is a
