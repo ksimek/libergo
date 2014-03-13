@@ -21,14 +21,14 @@ using namespace ergo;
 
 typedef double Real;
 
-static const double GAUSSIAN_MEAN = 0.0;
-static const double GAUSSIAN_VARIANCE = 1.0;
-static const double ERROR_THRESHOLD = 0.005;
+static const double GAUSSIAN_MEAN = 10.0;
+static const double GAUSSIAN_SDV = 3.0;
+static const double ERROR_THRESHOLD = 0.05;
 static const bool VERBOSE = true;
 static const size_t NUM_DYNAMICS_STEPS = 100;
 static const double MOMENTUM_ALPHA = 0.0;
-static const size_t NUM_ITERATIONS = 10000;
-static const size_t NUM_BURN_IN = 50;
+static const size_t NUM_ITERATIONS = 50000;
+static const size_t NUM_BURN_IN = 5000;
 std::vector<double> STEP_SIZE(1, 0.1);
 
 /** @brief  Compare two doubles upto a threshold. */
@@ -43,17 +43,15 @@ inline
 double target_distribution(const Real& x)
 {
     static boost::math::normal_distribution<> G(GAUSSIAN_MEAN,
-                                                GAUSSIAN_VARIANCE);
+                                                GAUSSIAN_SDV);
     return log(boost::math::pdf(G, x));
 }
 
 /** @brief  Compute the gradient of the normal pdf. */
 std::vector<double> gradient(const Real& x)
 {
-    std::vector<double> out(1);
-    out[0] = -x;
-
-    return out;
+    double df = (GAUSSIAN_MEAN - x) / (GAUSSIAN_SDV * GAUSSIAN_SDV);
+    return std::vector<double>(1, df);
 }
 
 /** @brief  Adapt a double into a VectorModel. */
@@ -83,15 +81,6 @@ int main(int argc, char** argv)
 
     ergo::shared_ptr<boost::mt19937> mt_rng = ergo::make_shared<boost::mt19937>();
     mt_rng->seed(12345);
-
-    // Testing deprecated constructor
-    hmc_step<Real> step_old(
-            Real_vector_adapter(),
-            target_distribution,
-            gradient,
-            STEP_SIZE,
-            NUM_DYNAMICS_STEPS,
-            MOMENTUM_ALPHA);
 
     // testing new constructor, passing rng
     hmc_step<Real> step(
@@ -124,7 +113,7 @@ int main(int argc, char** argv)
     double mean = std::accumulate(samples.begin(), samples.end(), 0.0);
     mean /= NUM_ITERATIONS;
 
-    // COMPUTE VARIANCE
+    // COMPUTE STANDARD DEVIATION
     // subtract out the mean
     std::transform(
         samples.begin(),
@@ -133,20 +122,21 @@ int main(int argc, char** argv)
         std::bind2nd(std::minus<double>(), mean));
 
     // squared sum of all values
-    double variance = std::inner_product(
-                                samples.begin(),
-                                samples.end(),
-                                samples.begin(),
-                                0.0);
+    double sdv = std::inner_product(
+                            samples.begin(),
+                            samples.end(),
+                            samples.begin(),
+                            0.0);
 
-    variance /= (NUM_ITERATIONS - 1);
+    sdv /= (NUM_ITERATIONS - 1);
+    sdv = sqrt(sdv);
 
     double accept_rate = static_cast<double>(accepted_count) / NUM_ITERATIONS;
     mean_accept_prob /= NUM_ITERATIONS;
 
     if(VERBOSE)
     {
-        std::cout << "mean: " << mean << " variance: " << variance << std::endl;
+        std::cout << "mean: " << mean << " std dev: " << sdv << std::endl;
         std::cout << "accept rate: " << accepted_count << '/'
                   << NUM_ITERATIONS << " = " << accept_rate << std::endl;
         std::cout << "mean accept probability: " << mean_accept_prob
@@ -161,9 +151,9 @@ int main(int argc, char** argv)
         success = false;
     }
 
-    if(!fequal(variance, GAUSSIAN_VARIANCE, ERROR_THRESHOLD))
+    if(!fequal(sdv, GAUSSIAN_SDV, ERROR_THRESHOLD))
     {
-        std::cerr << "FAILED!  Variances not equal" << std::endl;
+        std::cerr << "FAILED!  Std devs not equal" << std::endl;
         success = false;
     }
 
