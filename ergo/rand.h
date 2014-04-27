@@ -17,17 +17,14 @@ namespace ergo {
  */
 template <class Rng>
 inline
-Rng& rng()
+Rng& global_rng()
 {
-    static Rng* r = NULL;
-    if(!r)
-    {   
-        std::cerr <<  "WARNING: deprecated use of global random number generator" << std::endl;
-        r = new Rng;
-    }
-    return *r;
+    static Rng r;
+
+    return r;
 }
 
 } //namespace ergo
 
 #endif //ERGO_RAND_H
+

@@ -5,8 +5,6 @@
  * Test of recorders for the Hamiltonian Monte Carlo algorithm.
  */
 
-#define TEST
-
 #include <ergo/hmc.h>
 #include <ergo/record.h>
 #include <iostream>
@@ -33,9 +31,10 @@ std::vector<double> STEP_SIZE(1, 0.1);
 inline
 double target_distribution(const Real& x)
 {
-    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN,
-                                                GAUSSIAN_VARIANCE);
-    return log(boost::math::pdf(G, x));
+    using namespace boost::math;
+
+    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_VARIANCE);
+    return log(pdf(G, x));
 }
 
 /** @brief  Compute the gradient of the normal pdf. */

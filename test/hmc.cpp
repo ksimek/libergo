@@ -7,8 +7,6 @@
  * @TODO Test the adaptor-free constructor
  */
 
-#define TEST
-
 #include <ergo/hmc.h>
 #include <iostream>
 #include <numeric>
@@ -42,9 +40,10 @@ bool fequal(double op1, double op2, double threshold)
 inline
 double target_distribution(const Real& x)
 {
-    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN,
-                                                GAUSSIAN_SDV);
-    return log(boost::math::pdf(G, x));
+    using namespace boost::math;
+
+    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    return log(pdf(G, x));
 }
 
 /** @brief  Compute the gradient of the normal pdf. */
@@ -79,8 +78,8 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<double> densities(NUM_ITERATIONS);
 
-    ergo::shared_ptr<boost::mt19937> mt_rng = ergo::make_shared<boost::mt19937>();
-    mt_rng->seed(12345);
+    boost::mt19937 mt_rng;
+    mt_rng.seed(12345);
 
     // testing new constructor, passing rng
     hmc_step<Real> step(
@@ -96,7 +95,9 @@ int main(int argc, char** argv)
     double cur_target = target_distribution(cur_model);
 
     for(size_t i = 0; i < NUM_BURN_IN; ++i)
+    {
         step(cur_model, cur_target);
+    }
 
     size_t accepted_count = 0;
     double mean_accept_prob = 0;

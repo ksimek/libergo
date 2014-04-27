@@ -1,7 +1,6 @@
 #ifndef ERGO_DEF_H
 #define ERGO_DEF_H
 
-
 #if __cplusplus > 199711L
 #include <memory>
 namespace ergo 

@@ -1,7 +1,6 @@
 #ifndef ERGO_MH_H
 #define ERGO_MH_H
 
-#include <ergo/def.h>
 #include <ergo/rand.h>
 #include <ergo/record.h>
 #include <cmath>
@@ -10,10 +9,10 @@
 #include <string>
 #include <boost/function.hpp>
 #include <boost/random/mersenne_twister.hpp>
-#include <boost/random/uniform_real_distribution.hpp>
-#include <boost/random/variate_generator.hpp>
+#include <boost/random/uniform_01.hpp>
 #include <boost/optional.hpp>
 #include <boost/bind.hpp>
+#include <boost/ref.hpp>
 
 /**
  * @file    mh_step.h
@@ -27,7 +26,7 @@ namespace ergo {
  * @brief   Contains information about a MH proposal.
  *
  * This class represents the result of proposing a value using a MH proposal
- * distribution. Any proposers used with mh_step should return this. It 
+ * distribution. Any proposers used with mh_step should return this. It
  * contains the forward and reverse densities/probabilities.
  */
 struct mh_proposal_result
@@ -47,25 +46,28 @@ struct mh_proposal_result
  * This class implements the canonical MH step logic. To use it, you must
  * have a target distribution and a proposal mechanism.
  */
-template <class Model, class rng_t = boost::mt19937>
+template <class Model, class Rng = boost::mt19937>
 class mh_step
 {
-private:
+public:
     // typedefs
     typedef boost::function1<double, const Model&> evaluate_t;
     typedef boost::function2<mh_proposal_result, const Model&, Model&>
             propose_t;
     typedef boost::function3<void, const mh_step&, const Model&, double>
             record_t;
+    typedef Rng rng_t;
 
 public:
     /**
-     * @brief  Construct a MH step object.
-     *
-     * @deprecated{This constructor is deprecated. Please use the constructor that receives a random number generator.}
+     * @brief   Construct a MH step object.
      *
      * Construct a Metropolis-Hastings sampling step with the given target
-     * distribution and proposal distribution.
+     * distribution, proposal distribution, and random number generator.
+     * The RNG passed is not copied, but a reference to it is held inside this
+     * object. If copy is desired, use constructor without boost::ref. If
+     * no RNG is provided, this function will use a global one which is
+     * shared amongst all objects.
      *
      * @tparam  Evaluate    A unary function type; receives a Model by
      *                      const-ref and returns a double.
@@ -74,15 +76,19 @@ public:
      *                      concept.
      */
     template <class Evaluate, class Propose>
-    mh_step(const Evaluate& log_target, const Propose& propose) :
+    mh_step
+    (
+        const Evaluate& log_target,
+        const Propose& propose,
+        boost::reference_wrapper<rng_t> rngr = boost::ref(global_rng<rng_t>())
+    ) :
         log_target_(log_target),
         propose_(propose),
         temperature_(1.0),
         name_("generic-mh-step"),
         store_proposed_(false),
-        uni_dist_(0, 1),
-        rng_(),
-        uni_rand(&rng<rng_t>(), uni_dist_)
+        p_res_(0.0, 0.0),
+        rng_(rngr.get())
     {}
 
     /**
@@ -90,6 +96,8 @@ public:
      *
      * Construct a Metropolis-Hastings sampling step with the given target
      * distribution, proposal distribution, and random number generator.
+     * The RNG will be copied to the mh_step object; if reference semantics
+     * are desired, use constructor with boost::ref.
      *
      * @tparam  Evaluate    A unary function type; receives a Model by
      *                      const-ref and returns a double.
@@ -98,16 +106,40 @@ public:
      *                      concept.
      */
     template <class Evaluate, class Propose>
-    mh_step(const Evaluate& log_target, const Propose& propose, shared_ptr<rng_t> rng_in ) :
+    mh_step
+    (
+        const Evaluate& log_target,
+        const Propose& propose,
+        const rng_t& rng
+    ) :
         log_target_(log_target),
         propose_(propose),
-        temperature_(1.0),
         name_("generic-mh-step"),
+        temperature_(1.0),
         store_proposed_(false),
-        uni_dist_(0, 1),
-        rng_(rng_in),
-        uni_rand(rng_.get(), uni_dist_)
+        p_res_(0.0, 0.0),
+        rng_own_(rng),
+        rng_(rng_own_)
     {}
+
+    /** @brief  Set the temperature (for annealing). */
+    double temperature() const { return temperature_; }
+
+    /** @brief  Set the temperature (for annealing). */
+    void set_temperature(double temp) { temperature_ = temp; }
+
+    /** @brief  Returns the name of this step. */
+    const std::string& name() const { return name_; }
+
+    /** @brief  Returns the name of this step. */
+    void rename(const std::string& name) { name_ = name; }
+
+    /** @brief  Toggle whether this step should store the proposed model. */
+    void store_proposed(bool store = true) { store_proposed_ = store; }
+
+    /** @brief  Add a recorder to this step. */
+    template <class Recorder>
+    void add_recorder(const Recorder& rec) { recorders_.push_back(rec); }
 
     /**
      * @brief   Executes this step.
@@ -123,32 +155,23 @@ public:
     void operator()(Model& m, double& lt) const;
 
     /**
-     * @brief   log probability density of the current model under the 
+     * @brief   log probability density of the current model under the
      *          target distribution. Applies to the previously-executed
      *          step only.
      */
-    double current_target_density() const { return current_target_; }
+    double current_target_density() const { return cur_target_; }
 
     /**
-     * @brief   log probability density of the proposed model under the 
+     * @brief   log probability density of the proposed model under the
      *          target distribution. Applies to the previously-executed
      *          step only.
      */
-    double proposed_target_density() const { return proposed_target_; }
+    double proposed_target_density() const { return prop_target_; }
 
     /**
-     * @brief   log probability density of the current model given the
-     *          proposed model under the proposal distribution.  
-     *          Applies to the previously-executed step only.
+     * @brief   Proposal result of latest call to step.
      */
-    double reverse_proposal_density() const { return rev_proposal_prob_; }
-
-    /**
-     * @brief   log probability density of the proposed model given the
-     *          current model under the proposal distribution.
-     *          Applies to the previously-executed step only.
-     */
-    double forward_proposal_density() const { return fwd_proposal_prob_; }
+    const mh_proposal_result& proposal_result() const { return p_res_; }
 
     /**
      * @brief   Metropolis-hastings acceptance probability of the previous
@@ -177,54 +200,34 @@ public:
     /** @brief  Was the previous step accepted? */
     bool accepted() const { return accepted_; }
 
-    /** @brief  Set the temperature (for annealing). */
-    const double& temperature() const { return temperature_; }
-
-    /** @brief  Set the temperature (for annealing). */
-    double& temperature() { return temperature_; }
-
-    /** @brief  Returns the name of this step. */
-    const std::string& name() const { return name_; }
-
-    /** @brief  Returns the name of this step. */
-    std::string& name() { return name_; }
-
-    /** @brief  Toggle whether this step should store the proposed model. */
-    void store_proposed(bool store = true) { store_proposed_ = store; }
-
-    /** @brief  Add a recorder to this step. */
-    template <class Recorder>
-    void add_recorder(const Recorder& rec) { recorders_.push_back(rec); }
-
 private:
     evaluate_t log_target_;
     propose_t propose_;
-
-    mutable double accept_prob_;
-    mutable double fwd_proposal_prob_;
-    mutable double rev_proposal_prob_;
-    mutable double current_target_;
-    mutable double proposed_target_;
-    mutable bool accepted_;
-
     double temperature_;
-    mutable std::string name_;
-    mutable boost::optional<Model> proposed_model_;
+    std::string name_;
     bool store_proposed_;
 
-    boost::random::uniform_real_distribution<> uni_dist_;
-    shared_ptr<rng_t> rng_;
-    mutable boost::variate_generator<rng_t*, boost::random::uniform_real_distribution<> > uni_rand;
+    mutable double accept_prob_;
+    mutable double cur_target_;
+    mutable double prop_target_;
+    mutable mh_proposal_result p_res_;
+    mutable bool accepted_;
+
+    mutable boost::optional<Model> proposed_model_;
+
+    rng_t rng_own_;
+    rng_t& rng_;
+    mutable boost::random::uniform_01<> uni_dist_;
 
     mutable std::vector<record_t> recorders_;
 };
 
 /* \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ */
 
-template <class Model, class rng_t>
-void mh_step<Model, rng_t>::operator()(Model& m, double& log_target) const
+template <class Model, class Rng>
+void mh_step<Model, Rng>::operator()(Model& m, double& log_target) const
 {
-    current_target_ = log_target;
+    cur_target_ = log_target;
 
     // Use member so that:
     // (a) no default construction is necessary
@@ -240,31 +243,24 @@ void mh_step<Model, rng_t>::operator()(Model& m, double& log_target) const
     Model& m_p = *proposed_model_;
 
     // propose model and compute probabilities/densities
-    mh_proposal_result p_res = propose_(m, m_p);
-    fwd_proposal_prob_ = p_res.fwd;
-    rev_proposal_prob_ = p_res.rev;
-
-    // TODO: do we really want to overwrite this step's name?
-    if(p_res.name != "")
-    {
-        name_ = p_res.name;
-    }
+    p_res_ = propose_(m, m_p);
+    double fwd = p_res_.fwd;
+    double rev = p_res_.rev;
 
     // get log-target distribution of the proposed model
-    proposed_target_ = log_target_(m_p);
+    prop_target_ = log_target_(m_p);
 
     // compute acceptance probability
-    accept_prob_ = (proposed_target_ - current_target_
-                    + rev_proposal_prob_ - fwd_proposal_prob_) / temperature_;
+    accept_prob_ = (prop_target_ - cur_target_ + rev - fwd) / temperature_;
 
     // accept sample?
-    double u = std::log(uni_rand());
+    double u = std::log(uni_dist_(rng_));
     if(u < accept_prob_)
     {
-        // Model type should specialize swap to get best performance 
+        // Model type should specialize swap to get best performance
         using std::swap;
         swap(m, m_p);
-        log_target = proposed_target_;
+        log_target = prop_target_;
         accepted_ = true;
 
         // if asked to keep the proposed model, copy it into m_p (which is a
@@ -298,20 +294,27 @@ class mh_detail_recorder
 public:
     typedef step_detail record_type;
 
-    mh_detail_recorder(OutputIterator it) : it_(it) 
+    mh_detail_recorder(OutputIterator it) : it_(it)
     {}
 
-    template <class Model>
-    void operator()(const mh_step<Model>& step, const Model&, double log_target)
+    template <class Model, class Rng>
+    void operator()
+    (
+        const mh_step<Model, Rng>& step,
+        const Model&,
+        double log_target
+    )
     {
         step_detail detail;
+        const mh_proposal_result& pres = step.proposal_result();
+
         detail.type = "mh";
-        detail.name = step.name();
+        detail.name = step.name() + ":" + pres.name;
         detail.log_target = log_target;
         detail.details["cur_lt"] = step.current_target_density();
         detail.details["prop_lt"] = step.proposed_target_density();
-        detail.details["fwd_q"] = step.forward_proposal_density();
-        detail.details["rev_q"] = step.reverse_proposal_density();
+        detail.details["fwd_q"] = pres.fwd;
+        detail.details["rev_q"] = pres.rev;
         detail.details["p_accept"] = step.acceptance_probability();
         detail.details["accepted"] = step.accepted();
 

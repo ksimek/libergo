@@ -1,5 +1,3 @@
-// vim: tabstop=4 shiftwidth=4 foldmethod=marker
-
 #ifndef ERGO_RECORD_H
 #define ERGO_RECORD_H
 
