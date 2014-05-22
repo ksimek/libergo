@@ -46,7 +46,7 @@ namespace ergo {
  *                          evaluations, in some configurations (i.e. if we
  *                          accept_step = false, and alpha > 0).
  */
-template<typename Model, typename rng_t = boost::mt19937, bool ACCEPT_STEP = true, bool REVERSIBLE = true>
+template<typename Model, typename rng_t = default_rng_t, bool ACCEPT_STEP = true, bool REVERSIBLE = true>
 class hmc_step
 {
 public:

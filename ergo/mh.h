@@ -47,7 +47,7 @@ struct mh_proposal_result
  * This class implements the canonical MH step logic. To use it, you must
  * have a target distribution and a proposal mechanism.
  */
-template <class Model, class rng_t = boost::mt19937>
+template <class Model, class rng_t = default_rng_t>
 class mh_step
 {
 private:

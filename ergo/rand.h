@@ -1,7 +1,10 @@
 #ifndef ERGO_RAND_H
 #define ERGO_RAND_H
 
+#include <boost/random/mersenne_twister.hpp>
 namespace ergo {
+
+typedef boost::mt19937 default_rng_t;
 
 /**
  * @brief   Initializes and returns random number generator for sampling.
@@ -26,6 +29,11 @@ Rng& rng()
         r = new Rng;
     }
     return *r;
+}
+
+inline default_rng_t& default_rng()
+{
+    return rng<default_rng_t>();
 }
 
 } //namespace ergo
