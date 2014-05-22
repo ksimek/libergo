@@ -12,7 +12,6 @@
 #include <functional>
 #include <boost/random.hpp>
 #include <boost/math/distributions/normal.hpp>
-#include <boost/make_shared.hpp>
 
 using namespace ergo;
 
@@ -20,7 +19,7 @@ typedef double Real;
 typedef boost::mt19937 base_generator_type;
 
 static const double GAUSSIAN_MEAN = 0.0;
-static const double GAUSSIAN_VARIANCE = 1.0;
+static const double GAUSSIAN_SDV = 1.0;
 static const double ERROR_THRESHOLD = 0.005;
 static const bool VERBOSE = true;
 static const size_t NUM_ITERATIONS = 1000000;
@@ -40,20 +39,19 @@ inline
 double nrand()
 {   
     typedef boost::normal_distribution<> Distribution_type;
-    typedef boost::variate_generator<base_generator_type&, Distribution_type>
-            Rng;
 
-    Rng rng(base_rng, Distribution_type(0, 1));
-    return rng();
+    Distribution_type ndist(0, 1);
+    return ndist(base_rng);
 }
 
 /** @brief  log-pdf of normal distribution. */
 inline
 double target_distribution(const Real& x)
 {
-    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN,
-                                                GAUSSIAN_VARIANCE);
-    return log(boost::math::pdf(G, x));
+    using namespace boost::math;
+
+    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    return log(pdf(G, x));
 }
 
 /** @brief  Random-walk Metropolis proposal. */
@@ -74,8 +72,10 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<Real> densities(NUM_ITERATIONS);
 
-    mh_step<Real> step_depr(target_distribution, propose);
-    mh_step<Real, base_generator_type> step(target_distribution, propose, boost::make_shared<base_generator_type>(base_rng));
+    mh_step<Real, base_generator_type> step(
+                                        target_distribution,
+                                        propose,
+                                        base_rng);
 
     Real cur_model = -10;
     double cur_target = target_distribution(cur_model);
@@ -102,16 +102,19 @@ int main(int argc, char** argv)
         std::bind2nd(std::minus<double>(), mean));
 
     // squared sum of all values
-    double variance = std::inner_product(
-                                samples.begin(),
-                                samples.end(),
-                                samples.begin(),
-                                0.0);
+    double sdv = std::inner_product(
+                            samples.begin(),
+                            samples.end(),
+                            samples.begin(),
+                            0.0);
 
-    variance /= (NUM_ITERATIONS - 1);
+    sdv /= (NUM_ITERATIONS - 1);
+    sdv = sqrt(sdv);
 
     if(VERBOSE)
-        std::cout << "mean: " << mean << " variance: " << variance << std::endl;
+    {
+        std::cout << "mean: " << mean << " std dev: " << sdv << std::endl;
+    }
 
     bool success = true;
 
@@ -121,7 +124,7 @@ int main(int argc, char** argv)
         success = false;
     }
 
-    if(!fequal(variance, GAUSSIAN_VARIANCE, ERROR_THRESHOLD))
+    if(!fequal(sdv, GAUSSIAN_SDV, ERROR_THRESHOLD))
     {
         std::cerr << "FAILED!  Variances not equal" << std::endl;
         success = false;

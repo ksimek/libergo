@@ -20,15 +20,11 @@ typedef boost::mt19937 default_rng_t;
  */
 template <class Rng>
 inline
-Rng& rng()
+Rng& global_rng()
 {
-    static Rng* r = NULL;
-    if(!r)
-    {   
-        std::cerr <<  "WARNING: deprecated use of global random number generator" << std::endl;
-        r = new Rng;
-    }
-    return *r;
+    static Rng r;
+
+    return r;
 }
 
 inline default_rng_t& default_rng()
@@ -39,3 +35,4 @@ inline default_rng_t& default_rng()
 } //namespace ergo
 
 #endif //ERGO_RAND_H
+
