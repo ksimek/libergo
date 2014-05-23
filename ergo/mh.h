@@ -3,6 +3,7 @@
 
 #include <ergo/rand.h>
 #include <ergo/record.h>
+#include <ergo/util.h>
 #include <cmath>
 #include <vector>
 #include <algorithm>
@@ -46,7 +47,7 @@ struct mh_proposal_result
  * This class implements the canonical MH step logic. To use it, you must
  * have a target distribution and a proposal mechanism.
  */
-template <class Model, class Rng = boost::mt19937>
+template <class Model, class Rng = default_rng_t>
 class mh_step
 {
 public:
@@ -75,21 +76,22 @@ public:
      * @tparam  Propose     The proposer type; must comply with MH proposal
      *                      concept.
      */
-    template <class Evaluate, class Propose>
-    mh_step
-    (
-        const Evaluate& log_target,
-        const Propose& propose,
-        boost::reference_wrapper<rng_t> rngr = boost::ref(global_rng<rng_t>())
-    ) :
-        log_target_(log_target),
-        propose_(propose),
-        temperature_(1.0),
-        name_("generic-mh-step"),
-        store_proposed_(false),
-        p_res_(0.0, 0.0),
-        rng_(rngr.get())
-    {}
+//    template <class Evaluate, class Propose>
+//    mh_step
+//    (
+//        const Evaluate& log_target,
+//        const Propose& propose,
+//        boost::reference_wrapper<rng_t> rngr = boost::ref(global_rng<rng_t>())
+//    ) :
+//        log_target_(log_target),
+//        propose_(propose),
+//        temperature_(1.0),
+//        name_("generic-mh-step"),
+//        store_proposed_(false),
+//        p_res_(0.0, 0.0),
+//        rng_(rngr.get()),
+//        uni_dist_(&rng_)
+//    {}
 
     /**
      * @brief  Construct a MH step object.
@@ -98,6 +100,11 @@ public:
      * distribution, proposal distribution, and random number generator.
      * The RNG will be copied to the mh_step object; if reference semantics
      * are desired, use constructor with boost::ref.
+     *
+     * @param rng           A random number generator object.  Can receive
+     *                      const T&, T*, or shared_ptr<T>, which chooses
+     *                      copy, external ownershp, or shared ownership semantics,
+     *                      respectively.
      *
      * @tparam  Evaluate    A unary function type; receives a Model by
      *                      const-ref and returns a double.
@@ -110,7 +117,7 @@ public:
     (
         const Evaluate& log_target,
         const Propose& propose,
-        const rng_t& rng
+        copy_or_ref<rng_t> rng = &global_rng<rng_t>()
     ) :
         log_target_(log_target),
         propose_(propose),
@@ -118,8 +125,8 @@ public:
         temperature_(1.0),
         store_proposed_(false),
         p_res_(0.0, 0.0),
-        rng_own_(rng),
-        rng_(rng_own_)
+        rng_ptr_(rng.get()),
+        uni_dist_(rng_ptr_.get())
     {}
 
     /** @brief  Set the temperature (for annealing). */
@@ -214,10 +221,12 @@ private:
     mutable bool accepted_;
 
     mutable boost::optional<Model> proposed_model_;
-
-    rng_t rng_own_;
-    rng_t& rng_;
-    mutable boost::random::uniform_01<> uni_dist_;
+//
+//    rng_t rng_own_;
+//    rng_t& rng_;
+    
+    shared_ptr<rng_t> rng_ptr_;
+    mutable uniform_rand<rng_t> uni_dist_;
 
     mutable std::vector<record_t> recorders_;
 };
@@ -254,7 +263,7 @@ void mh_step<Model, Rng>::operator()(Model& m, double& log_target) const
     accept_prob_ = (prop_target_ - cur_target_ + rev - fwd) / temperature_;
 
     // accept sample?
-    double u = std::log(uni_dist_(rng_));
+    double u = std::log(uni_dist_());
     if(u < accept_prob_)
     {
         // Model type should specialize swap to get best performance

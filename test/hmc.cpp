@@ -40,9 +40,7 @@ bool fequal(double op1, double op2, double threshold)
 inline
 double target_distribution(const Real& x)
 {
-    using namespace boost::math;
-
-    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
     return log(pdf(G, x));
 }
 
@@ -78,7 +76,7 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<double> densities(NUM_ITERATIONS);
 
-    boost::mt19937 mt_rng;
+    ergo::default_rng_t mt_rng;
     mt_rng.seed(12345);
 
     // testing new constructor, passing rng

@@ -1,5 +1,6 @@
 INCLUDE_PATHS:=-I../ -I/usr/local/include
-CXX_FLAGS := -g
+#CXX_FLAGS := -g -std=c++11 
+CXX_FLAGS := -g 
 RM := rm -rf
 
 all: mh hmc hmc_vec record rand

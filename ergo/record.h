@@ -466,7 +466,7 @@ private:
     bool increment_;
 };
 
-/** @brief  Convenience function to create a best_sample_recorder. */
+/** @brief  Convenience function to create a proposed_recorder. */
 template <class OutputIterator>
 inline
 proposed_recorder<

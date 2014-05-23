@@ -38,9 +38,7 @@ bool fequal(double op1, double op2, double threshold)
 inline
 double target_distribution(const vec_t& x)
 {
-    using namespace boost::math;
-
-    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
     return log(pdf(G, x[0]));
 }
 

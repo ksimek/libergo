@@ -2,6 +2,10 @@
 #define ERGO_DEF_H
 
 #if __cplusplus > 199711L
+#define HAVE_CXX11 1
+#endif
+
+#ifdef HAVE_CXX11
 #include <memory>
 namespace ergo 
 {

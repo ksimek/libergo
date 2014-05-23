@@ -3,6 +3,7 @@
  * Test of RNG strategy used in MH step.
  */
 
+#include <ergo/def.h>
 #include <ergo/mh.h>
 #include <iostream>
 #include <numeric>
@@ -15,7 +16,7 @@
 using namespace ergo;
 
 typedef double Real;
-typedef boost::mt19937 rng_t;
+typedef ergo::default_rng_t rng_t;
 
 static const double GAUSSIAN_MEAN = 0.0;
 static const double GAUSSIAN_SDV = 1.0;
@@ -35,7 +36,7 @@ double log_target(const Real& x)
 {
     using namespace boost::math;
 
-    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
     return log(pdf(G, x));
 }
 
@@ -48,12 +49,41 @@ mh_proposal_result propose(const Real& in, Real& out)
     return mh_proposal_result(0.0, 0.0);
 }
 
+void test_uniform_rand(rng_t& rng)
+{
+    ergo::uniform_rand<rng_t> rand(&rng);
+
+    double x = rand();
+
+    // check for NaN bug
+    assert(!(x != x));
+#ifdef HAVE_Cxx11
+    assert(!std::isnan(x));
+#endif
+}
+
+void test_normal_rand(rng_t& rng)
+{
+    ergo::normal_rand<rng_t> rand(&rng, 0, 1);
+
+    double x = rand();
+
+    // check for NaN bug
+    assert(!(x != x));
+#ifdef HAVE_Cxx11
+    assert(!std::isnan(x));
+#endif
+}
+
 /** @brief  Main, baby! */
 int main(int argc, char** argv)
 {
     rng_t rng;
     rng_t rng2;
     rng2.seed(12345);
+
+    test_uniform_rand(rng);
+    test_normal_rand(rng);
 
     // these steps share the global RNG
     mh_step<Real, rng_t> step0(log_target, propose);
