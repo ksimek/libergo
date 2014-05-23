@@ -31,9 +31,7 @@ std::vector<double> STEP_SIZE(1, 0.1);
 inline
 double target_distribution(const Real& x)
 {
-    using namespace boost::math;
-
-    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_VARIANCE);
+    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_VARIANCE);
     return log(pdf(G, x));
 }
 

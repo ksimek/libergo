@@ -6,6 +6,7 @@
  */
 
 #include <ergo/mh.h>
+#include <ergo/def.h>
 #include <iostream>
 #include <numeric>
 #include <algorithm>
@@ -34,23 +35,13 @@ bool fequal(double op1, double op2, double threshold)
     return fabs(op1 - op2) < threshold;
 }
 
-/** @brief  Generate normal random number. */
-inline
-double nrand()
-{   
-    typedef boost::normal_distribution<> Distribution_type;
-
-    Distribution_type ndist(0, 1);
-    return ndist(base_rng);
-}
+ergo::normal_rand<base_generator_type> nrand(&base_rng, 0, 1);
 
 /** @brief  log-pdf of normal distribution. */
 inline
 double target_distribution(const Real& x)
 {
-    using namespace boost::math;
-
-    static normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
+    static boost::math::normal_distribution<> G(GAUSSIAN_MEAN, GAUSSIAN_SDV);
     return log(pdf(G, x));
 }
 
@@ -68,14 +59,31 @@ mh_proposal_result propose(const Real& in, Real& out)
 /** @brief  Main, baby! */
 int main(int argc, char** argv)
 {
-
-    std::vector<Real> samples(NUM_ITERATIONS);
+//    base_rng.seed(std::time(0));
+    std::vector<Real> samples;
     std::vector<Real> densities(NUM_ITERATIONS);
+    size_t thinning = 1;
 
-    mh_step<Real, base_generator_type> step(
+    samples.reserve(NUM_ITERATIONS);
+
+    // test constructors 
+    mh_step<Real, base_generator_type> step_cpy(
                                         target_distribution,
                                         propose,
                                         base_rng);
+    mh_step<Real, base_generator_type> step_ptr(
+                                        target_distribution,
+                                        propose,
+                                        &base_rng);
+    mh_step<Real, base_generator_type> step_smart_ptr(
+                                        target_distribution,
+                                        propose,
+                                        make_shared<base_generator_type>(base_rng));
+
+    // copy constructor
+    mh_step<Real, base_generator_type> step = step_ptr;
+    // assignment
+    step = step_ptr;
 
     Real cur_model = -10;
     double cur_target = target_distribution(cur_model);
@@ -86,12 +94,13 @@ int main(int argc, char** argv)
     for(size_t i = 0; i < NUM_ITERATIONS; ++i)
     {
         step(cur_model, cur_target);
-        samples[i] = cur_model;
+        if(i % thinning == 0)
+            samples.push_back(cur_model);
         densities[i] = cur_target;
     }
 
     double mean = std::accumulate(samples.begin(), samples.end(), 0.0);
-    mean /= NUM_ITERATIONS;
+    mean /= samples.size();
 
     // COMPUTE VARIANCE
     // subtract out the mean
@@ -108,7 +117,7 @@ int main(int argc, char** argv)
                             samples.begin(),
                             0.0);
 
-    sdv /= (NUM_ITERATIONS - 1);
+    sdv /= samples.size()-1;
     sdv = sqrt(sdv);
 
     if(VERBOSE)
