@@ -3,6 +3,8 @@
 
 #include <ergo/def.h>
 #include <boost/random/mersenne_twister.hpp>
+#include <boost/version.hpp>
+
 
 #ifdef HAVE_CXX11
 #include <random>
@@ -15,7 +17,11 @@
 #endif
 namespace ergo {
 
+#ifdef HAVE_CXX11
+typedef std::mt19937 default_rng_t;
+#else
 typedef boost::mt19937 default_rng_t;
+#endif
 
 /**
  * @brief   Initializes and returns random number generator for sampling.

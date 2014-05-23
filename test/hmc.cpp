@@ -76,7 +76,7 @@ int main(int argc, char** argv)
     std::vector<Real> samples(NUM_ITERATIONS);
     std::vector<double> densities(NUM_ITERATIONS);
 
-    boost::mt19937 mt_rng;
+    ergo::default_rng_t mt_rng;
     mt_rng.seed(12345);
 
     // testing new constructor, passing rng

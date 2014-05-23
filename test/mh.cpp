@@ -17,7 +17,7 @@
 using namespace ergo;
 
 typedef double Real;
-typedef boost::mt19937 base_generator_type;
+typedef ergo::default_rng_t base_generator_type;
 
 static const double GAUSSIAN_MEAN = 0.0;
 static const double GAUSSIAN_SDV = 1.0;
@@ -60,6 +60,15 @@ mh_proposal_result propose(const Real& in, Real& out)
 int main(int argc, char** argv)
 {
 //    base_rng.seed(std::time(0));
+#if defined(HAVE_CXX11)
+    std::cout << "using c++11 for rand" << std::endl;
+#elif BOOST_VERSION >= 104700
+    std::cout << "using modern boost for rand" << std::endl;
+#else
+    std::cout << "using old boost for rand" << std::endl;
+#endif
+    std::cout << __cplusplus << std::endl;
+    std::cout << BOOST_VERSION << std::endl;
     std::vector<Real> samples;
     std::vector<Real> densities(NUM_ITERATIONS);
     size_t thinning = 1;

@@ -16,7 +16,7 @@
 using namespace ergo;
 
 typedef double Real;
-typedef boost::mt19937 rng_t;
+typedef ergo::default_rng_t rng_t;
 
 static const double GAUSSIAN_MEAN = 0.0;
 static const double GAUSSIAN_SDV = 1.0;
