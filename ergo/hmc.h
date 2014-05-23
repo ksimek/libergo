@@ -335,7 +335,7 @@ public:
     const std::string& name() const { return name_; }
 
     /** @brief  Returns the name of this step. */
-    void rename(const std::string& name) { return name_ = name; }
+    void rename(const std::string& name) { name_ = name; }
 
     /** @brief  Toggle whether this step should store the proposed model. */
     void store_proposed(bool store = true) { store_proposed_ = store; }
