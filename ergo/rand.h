@@ -5,7 +5,6 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/version.hpp>
 
-
 #ifdef HAVE_CXX11
 #include <random>
 #else 
@@ -15,6 +14,7 @@
 #include <boost/random/uniform_01.hpp>
 #include <boost/random/normal_distribution.hpp>
 #endif
+
 namespace ergo {
 
 #ifdef HAVE_CXX11
@@ -53,10 +53,14 @@ inline default_rng_t& default_rng()
 namespace detail
 {
 #if !defined(HAVE_CXX11) && BOOST_VERSION < 104700
-    template <class engine_t, class dist_t>
+    template <class Engine, class Dist>
     class legacy_distribution_wrapper
     {
-        typedef typename boost::variate_generator<engine_t*, dist_t> variate_generator_t;
+        typedef Engine engine_t;
+        typedef Dist dist_t;
+        typedef typename boost::variate_generator<engine_t*, dist_t>
+                variate_generator_t;
+
     public:
         legacy_distribution_wrapper(engine_t* rng, const dist_t& dist) :
             variate_generator_(rng, dist)
@@ -67,19 +71,23 @@ namespace detail
             variate_generator_.distribution().reset();
             return variate_generator_();
         }
+
     private:
         variate_generator_t variate_generator_;
     };
 #endif
 
-    template <class engine_t, class dist_t>
+    template <class Engine, class Dist>
     class modern_distribution_wrapper
     {
+        typedef Engine engine_t;
+        typedef Dist dist_t;
+
     public:
         modern_distribution_wrapper(engine_t* rng, const dist_t& dist) :
             rng_(rng),
             dist_(dist)
-        {}
+        { }
 
         double operator()()
         {
@@ -99,15 +107,17 @@ namespace detail
  * This class exists to provide backward compatibility with old
  * implementations of boost and forward compatibility with C++11.
  */
-template <class engine_t>
+template <class Engine>
 class uniform_rand 
 {
+    typedef Engine engine_t;
+
 #if defined(HAVE_CXX11)
-        typedef std::uniform_real_distribution<> dist_t;
+    typedef std::uniform_real_distribution<> dist_t;
 #elif BOOST_VERSION >= 104700
-        typedef boost::random::uniform_01<> dist_t;
+    typedef boost::random::uniform_01<> dist_t;
 #else
-        typedef boost::uniform_01<> dist_t;
+    typedef boost::uniform_01<> dist_t;
 #endif
 
 public:
@@ -119,8 +129,9 @@ public:
     {
         return wrapper_();
     }
+
 private:  
-#if defined(HAVE_CXX11) ||BOOST_VERSION >= 104700
+#if defined(HAVE_CXX11) || BOOST_VERSION >= 104700
     detail::modern_distribution_wrapper<engine_t, dist_t> wrapper_;
 #else  // boost < 1.47
     detail::legacy_distribution_wrapper<engine_t, dist_t> wrapper_;
@@ -133,15 +144,17 @@ private:
  * This class exists to provide backward compatibility with old
  * implementations of boost and forward compatibility with C++11.
  */
-template <class engine_t>
+template <class Engine>
 class normal_rand 
 {
+    typedef Engine engine_t;
+
 #if defined(HAVE_CXX11)
-        typedef std::normal_distribution<> dist_t;
+    typedef std::normal_distribution<> dist_t;
 #elif BOOST_VERSION >= 104700
-        typedef boost::random::normal_distribution<> dist_t;
+    typedef boost::random::normal_distribution<> dist_t;
 #else
-        typedef boost::normal_distribution<> dist_t;
+    typedef boost::normal_distribution<> dist_t;
 #endif
 
 public:
@@ -154,7 +167,7 @@ public:
         return wrapper_();
     }
 private:  
-#if defined(HAVE_CXX11) ||BOOST_VERSION >= 104700
+#if defined(HAVE_CXX11) || BOOST_VERSION >= 104700
     detail::modern_distribution_wrapper<engine_t, dist_t> wrapper_;
 
 #else  // boost < 1.47

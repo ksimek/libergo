@@ -33,13 +33,15 @@ void vector_set(VectorType* v, size_t i, double x)
 }
 
 /**
- * Utility class for receiving parameters by copy, reference, or shared ownership, depending on
- * whether received by const-reference, pointer, or shared_ptr.
- * This allows ownership semantics to be decided by the caller, rather than the receiving function.
- * It does this by internally storing as a shared_ptr, which the get() function returns.  For
- * external ownership, the shared_ptr's delete functionality is disabled to avoid a double-free.
+ * Utility class for receiving parameters by copy, reference, or shared
+ * ownership, depending on whether received by const-reference, pointer,
+ * or shared_ptr. This allows ownership semantics to be decided by the
+ * caller, rather than the receiving function. It does this by internally
+ * storing as a shared_ptr, which the get() function returns.  For
+ * external ownership, the shared_ptr's delete functionality is disabled to
+ * avoid a double-free.
  *
- *  It can be used to replace three overloads:
+ * It can be used to replace three overloads:
  *
  * \code{.cpp}
  *     void foo(const T& t); // copy (internal ownership)
@@ -66,8 +68,7 @@ private:
     struct null_deleter
     {
         void operator()(void const *) const
-        {
-        }
+        { }
     };
 
 public:
@@ -88,19 +89,18 @@ public:
         obj_(obj.get_pointer(), null_deleter())
     { }
 
-    shared_ptr<T> get()
-    {
-        return obj_;
-    }
-    const shared_ptr<T> get() const
-    {
-        return obj_;
-    }
+    /** @brief  Get underlying shared pointer representation. */
+    shared_ptr<T> get() { return obj_; }
+
+    /**
+     * @brief   Get underlying shared pointer representation.
+     * @note    Returning by const-value? Is this a mistake? --Ernesto
+     */
+    const shared_ptr<T> get() const { return obj_; }
 
 private:
     shared_ptr<T> obj_;
 };
-
 
 } // namespace ergo
 

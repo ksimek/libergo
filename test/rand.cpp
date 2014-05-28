@@ -57,7 +57,7 @@ void test_uniform_rand(rng_t& rng)
 
     // check for NaN bug
     assert(!(x != x));
-#ifdef HAVE_Cxx11
+#ifdef HAVE_CXX11
     assert(!std::isnan(x));
 #endif
 }
@@ -70,7 +70,7 @@ void test_normal_rand(rng_t& rng)
 
     // check for NaN bug
     assert(!(x != x));
-#ifdef HAVE_Cxx11
+#ifdef HAVE_CXX11
     assert(!std::isnan(x));
 #endif
 }

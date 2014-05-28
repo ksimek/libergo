@@ -17,7 +17,8 @@
 using namespace ergo;
 
 typedef double Real;
-typedef ergo::default_rng_t base_generator_type;
+typedef ergo::default_rng_t base_generator_t;
+typedef mh_step<Real, base_generator_t> mh_step_real;
 
 static const double GAUSSIAN_MEAN = 0.0;
 static const double GAUSSIAN_SDV = 1.0;
@@ -26,7 +27,7 @@ static const bool VERBOSE = true;
 static const size_t NUM_ITERATIONS = 1000000;
 static const size_t NUM_BURN_IN = 5000;
 
-base_generator_type base_rng;
+base_generator_t base_rng;
 
 /** @brief  Compare two doubles upto a threshold. */
 inline
@@ -35,7 +36,7 @@ bool fequal(double op1, double op2, double threshold)
     return fabs(op1 - op2) < threshold;
 }
 
-ergo::normal_rand<base_generator_type> nrand(&base_rng, 0, 1);
+ergo::normal_rand<base_generator_t> nrand(&base_rng, 0, 1);
 
 /** @brief  log-pdf of normal distribution. */
 inline
@@ -69,6 +70,7 @@ int main(int argc, char** argv)
 #endif
     std::cout << __cplusplus << std::endl;
     std::cout << BOOST_VERSION << std::endl;
+
     std::vector<Real> samples;
     std::vector<Real> densities(NUM_ITERATIONS);
     size_t thinning = 1;
@@ -76,21 +78,16 @@ int main(int argc, char** argv)
     samples.reserve(NUM_ITERATIONS);
 
     // test constructors 
-    mh_step<Real, base_generator_type> step_cpy(
-                                        target_distribution,
-                                        propose,
-                                        base_rng);
-    mh_step<Real, base_generator_type> step_ptr(
-                                        target_distribution,
-                                        propose,
-                                        &base_rng);
-    mh_step<Real, base_generator_type> step_smart_ptr(
-                                        target_distribution,
-                                        propose,
-                                        make_shared<base_generator_type>(base_rng));
+    mh_step_real step_cpy(target_distribution, propose, base_rng);
+    mh_step_real step_ptr(target_distribution, propose, &base_rng);
+    mh_step_real step_smart_ptr(
+                            target_distribution,
+                            propose,
+                            make_shared<base_generator_t>(base_rng));
 
     // copy constructor
-    mh_step<Real, base_generator_type> step = step_ptr;
+    mh_step<Real, base_generator_t> step = step_ptr;
+
     // assignment
     step = step_ptr;
 
