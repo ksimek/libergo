@@ -121,8 +121,8 @@ public:
     ) :
         log_target_(log_target),
         propose_(propose),
-        name_("generic-mh-step"),
         temperature_(1.0),
+        name_("generic-mh-step"),
         store_proposed_(false),
         p_res_(0.0, 0.0),
         rng_ptr_(rng.get()),
