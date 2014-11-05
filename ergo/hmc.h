@@ -157,7 +157,6 @@ public:
         copy_or_ref<rng_t> rng = &global_rng<rng_t>()
     );
 
-
     /** @brief  Reset step. Momentum is discarded. */
     void reset() { if(alpha_ != 0.0) p_.resize(0); }
 
@@ -167,6 +166,9 @@ public:
         reset();
         step_sizes_ = step_sizes;
     }
+
+    /** @brief  Get vector of step sizes. */
+    const vec_t& step_sizes() const { return step_sizes_; }
 
     /** @brief  Set the number of dynamics steps. */
     void set_num_dynamics_steps(size_t nds) { num_dynamics_steps_ = nds; }

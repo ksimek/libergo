@@ -9,6 +9,8 @@
 #include <boost/variant.hpp>
 #include <boost/io/ios_state.hpp>
 #include <boost/optional.hpp>
+#include <boost/bind.hpp>
+#include <boost/ref.hpp>
 
 namespace ergo {
 
@@ -109,6 +111,18 @@ struct step_detail
     detail_map_t details;
 };
 
+/** @brief  Helper function that pushes a detail_t to a stream. */
+inline
+void write_detail_pair
+(
+    std::ostream& ost,
+    const step_detail::detail_map_t::value_type& pr,
+    char delim = ' '
+)
+{
+    ost << delim << pr.first << '=' << pr.second;
+}
+
 /** @brief  Stream a step_detail. */
 inline
 std::ostream& operator<<(std::ostream& ost, const step_detail& detail)
@@ -125,12 +139,18 @@ std::ostream& operator<<(std::ostream& ost, const step_detail& detail)
     ost << DELIM << detail.type;
     ost << DELIM << detail.log_target;
 
-    typedef step_detail::detail_map_t::const_iterator iterator;
+    //typedef step_detail::detail_map_t::const_iterator iterator;
+    //for(iterator it = detail.details.begin(); it != detail.details.end(); ++it)
+    //{
+    //    ost << DELIM << it->first << '=' << it->second;
+    //}
 
-    for(iterator it = detail.details.begin(); it != detail.details.end(); ++it)
-    {
-        ost << DELIM << it->first << '=' << it->second;
-    }
+    // changed it to this (using helper function above) to keep this function
+    // inline
+    std::for_each(
+        detail.details.begin(),
+        detail.details.end(),
+        boost::bind(write_detail_pair, boost::ref(ost), _1, DELIM));
 
     return ost;
 }
