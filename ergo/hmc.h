@@ -157,6 +157,10 @@ public:
         copy_or_ref<rng_t> rng = &global_rng<rng_t>()
     );
 
+public:
+    /** @brief  Get target distribution used by this step. */
+    const evaluate_t& target_distribution() const { return log_target_; }
+
     /** @brief  Reset step. Momentum is discarded. */
     void reset() { if(alpha_ != 0.0) p_.resize(0); }
 
@@ -176,6 +180,34 @@ public:
     /** @brief  Returns the number of dynamics steps. */
     size_t num_dynamics_steps() const { return num_dynamics_steps_; }
 
+    /** @brief  Set the temperature (for annealing). */
+    void set_temperature(double temp) { temperature_ = temp; }
+
+    /** @brief  Set the temperature (for annealing). */
+    double temperature() const { return temperature_; }
+
+    /** @brief  Returns the name of this step. */
+    void rename(const std::string& name) { name_ = name; }
+
+    /** @brief  Returns the name of this step. */
+    const std::string& name() const { return name_; }
+
+    /** @brief  Toggle whether this step should store the proposed model. */
+    void store_proposed(bool store = true) { store_proposed_ = store; }
+
+    /** @brief  Sets the lower bounds for variables of the model. */
+    void set_lower_bounds(const vec_t& lower_bounds)
+    {
+        lower_bounds_ = lower_bounds;
+    }
+
+    /** @brief  Sets the upper bounds for variables of the model. */
+    void set_upper_bounds(const vec_t& upper_bounds)
+    {
+        upper_bounds_ = upper_bounds;
+    }
+
+public:
     /**
      * @brief Runs a step of Hybrid Monte Carlo (HMC) on a model m.
      *
@@ -234,33 +266,6 @@ public:
 
     /** @brief  Was previous step accepted? */
     bool accepted() const { return accepted_; }
-
-    /** @brief  Set the temperature (for annealing). */
-    double temperature() const { return temperature_; }
-
-    /** @brief  Set the temperature (for annealing). */
-    void set_temperature(double temp) { temperature_ = temp; }
-
-    /** @brief  Returns the name of this step. */
-    const std::string& name() const { return name_; }
-
-    /** @brief  Returns the name of this step. */
-    void rename(const std::string& name) { name_ = name; }
-
-    /** @brief  Toggle whether this step should store the proposed model. */
-    void store_proposed(bool store = true) { store_proposed_ = store; }
-
-    /** @brief  Sets the lower bounds for variables of the model. */
-    void set_lower_bounds(const vec_t& lower_bounds)
-    {
-        lower_bounds_ = lower_bounds;
-    }
-
-    /** @brief  Sets the upper bounds for variables of the model. */
-    void set_upper_bounds(const vec_t& upper_bounds)
-    {
-        upper_bounds_ = upper_bounds;
-    }
 
     /** @brief  Add a recorder to this step. */
     template <class Recorder>
