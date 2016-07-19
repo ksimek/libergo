@@ -3,7 +3,7 @@ INCLUDE_PATHS:=-I../ -I/usr/local/include
 CXX_FLAGS := -g 
 RM := rm -rf
 
-all: mh hmc hmc_vec record rand
+all: mh hmc hmc_vec record rand example
 
 mh: mh.o
 	g++ mh.o -o mh
@@ -29,6 +29,11 @@ rand: rand.o
 	g++ rand.o -o rand
 rand.o: rand.cpp  ../ergo/mh.h ../ergo/record.h ../ergo/rand.h
 	g++ -c rand.cpp ${CXX_FLAGS} ${INCLUDE_PATHS} -o rand.o
+
+example: example.o
+	g++ example.o -o example
+example.o: example.cpp  ../ergo/mh.h
+	g++ -c example.cpp ${CXX_FLAGS} ${INCLUDE_PATHS} -o example.o
 
 clean:
 	${RM} *.o mh hmc hmc_vec hmc_rec record rand
