@@ -1,4 +1,4 @@
-// vim: tabstop=4 expandtab shiftwidth=4 softtabstop=4
+// vim: tabstop=2 expandtab shiftwidth=4 softtabstop=4
 
 /**
  * @file test/hmc.cpp
@@ -27,7 +27,7 @@ static const size_t NUM_DYNAMICS_STEPS = 100;
 static const double MOMENTUM_ALPHA = 0.0;
 static const size_t NUM_ITERATIONS = 50000;
 static const size_t NUM_BURN_IN = 5000;
-std::vector<double> STEP_SIZE(1, 0.1);
+std::vector<double> STEP_SIZE(1, 5.0);
 
 /** @brief  Compare two doubles upto a threshold. */
 inline
