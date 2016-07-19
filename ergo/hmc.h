@@ -5,6 +5,7 @@
 #include <ergo/exception.h>
 #include <ergo/rand.h>
 #include <ergo/record.h>
+#include <ergo/def.h>
 #include <vector>
 #include <algorithm>
 #include <numeric>
@@ -478,7 +479,7 @@ hmc_step<Model, Rng, ACCEPT_STEP, REVERSIBLE>::hmc_step
 {
     // shared_ptr allows get_, set_, and size_ to own the adapter, and avoids
     // us having to store it explicitly in this object.
-    boost::shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
+    shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
     get_ = boost::bind<double>(&VectorAdapter::get, a_p, _1, _2);
     set_ = boost::bind<void>(&VectorAdapter::set, a_p, _1, _2, _3);
     size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
