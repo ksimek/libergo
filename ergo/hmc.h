@@ -487,9 +487,9 @@ hmc_step<Model, Rng, ACCEPT_STEP, REVERSIBLE>::hmc_step
     // shared_ptr allows get_, set_, and size_ to own the adapter, and avoids
     // us having to store it explicitly in this object.
     shared_ptr<VectorAdapter> a_p(new VectorAdapter(adapter));
-    get_ = boost::bind<double>(&VectorAdapter::get, a_p, _1, _2);
-    set_ = boost::bind<void>(&VectorAdapter::set, a_p, _1, _2, _3);
-    size_ = boost::bind<size_t>(&VectorAdapter::size, a_p, _1);
+    get_ = boost::bind(&VectorAdapter::get, a_p, _1, _2);
+    set_ = boost::bind(&VectorAdapter::set, a_p, _1, _2, _3);
+    size_ = boost::bind(&VectorAdapter::size, a_p, _1);
 }
 
 /* \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ \/ */
@@ -508,7 +508,7 @@ hmc_step<Model, Rng, ACCEPT_STEP, REVERSIBLE>::hmc_step
 ) :
     get_(boost::bind<double>(vector_get<Model>, _1, _2)),
     set_(boost::bind<void>(vector_set<Model>, _1, _2, _3)),
-    size_(boost::bind<size_t>(&Model::size, _1)),
+    size_(boost::bind(&Model::size, _1)),
     log_target_(log_target),
     gradient_(gradient),
     step_sizes_(step_sizes),
