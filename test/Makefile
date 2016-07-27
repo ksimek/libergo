@@ -36,4 +36,4 @@ example.o: example.cpp  ../ergo/mh.h
 	g++ -c example.cpp ${CXX_FLAGS} ${INCLUDE_PATHS} -o example.o
 
 clean:
-	${RM} *.o mh hmc hmc_vec hmc_rec record rand
+	${RM} *.o mh hmc hmc_vec hmc_rec record rand example
